@@ -66,14 +66,21 @@ public class ConcurrentBag<T extends IConcurrentBagEntry> implements AutoCloseab
 {
    private static final Logger LOGGER = LoggerFactory.getLogger(ConcurrentBag.class);
 
+   /** 负责存放ConcurrentBag中全部用于出借的资源 **/
    private final CopyOnWriteArrayList<T> sharedList;
+
    private final boolean weakThreadLocals;
 
+   /** 用于加速线程本地化资源访问 **/
    private final ThreadLocal<List<Object>> threadList;
+
    private final IBagStateListener listener;
    private final AtomicInteger waiters;
    private volatile boolean closed;
 
+   /**
+    * 用于存在资源等待线程时的第一手资源交接
+    */
    private final SynchronousQueue<T> handoffQueue;
 
    public interface IConcurrentBagEntry
@@ -139,6 +146,8 @@ public class ConcurrentBag<T extends IConcurrentBagEntry> implements AutoCloseab
       // Otherwise, scan the shared list ... then poll the handoff queue
       final int waiting = waiters.incrementAndGet();
       try {
+         // 当无可用本地化资源时，遍历全部资源，查看是否存在可用资源
+         // 因此被一个线程本地化的资源也可能被另一个线程“抢走”
          for (T bagEntry : sharedList) {
             if (bagEntry.compareAndSet(STATE_NOT_IN_USE, STATE_IN_USE)) {
                // If we may have stolen another waiter's connection, request another bag add.
@@ -154,6 +163,7 @@ public class ConcurrentBag<T extends IConcurrentBagEntry> implements AutoCloseab
          timeout = timeUnit.toNanos(timeout);
          do {
             final long start = currentTime();
+            // 当现有全部资源全部在使用中，等待一个被释放的资源或者一个新资源
             final T bagEntry = handoffQueue.poll(timeout, NANOSECONDS);
             if (bagEntry == null || bagEntry.compareAndSet(STATE_NOT_IN_USE, STATE_IN_USE)) {
                return bagEntry;
@@ -182,6 +192,7 @@ public class ConcurrentBag<T extends IConcurrentBagEntry> implements AutoCloseab
    {
       bagEntry.setState(STATE_NOT_IN_USE);
 
+      // 判断是否存在等待线程，若存在，则直接转手资源
       for (int i = 0; waiters.get() > 0; i++) {
          if (bagEntry.getState() != STATE_NOT_IN_USE || handoffQueue.offer(bagEntry)) {
             return;
@@ -194,6 +205,7 @@ public class ConcurrentBag<T extends IConcurrentBagEntry> implements AutoCloseab
          }
       }
 
+      // 否则，进行资源本地化
       final List<Object> threadLocalList = threadList.get();
       if (threadLocalList.size() < 50) {
          threadLocalList.add(weakThreadLocals ? new WeakReference<>(bagEntry) : bagEntry);
@@ -215,6 +227,7 @@ public class ConcurrentBag<T extends IConcurrentBagEntry> implements AutoCloseab
       sharedList.add(bagEntry);
 
       // spin until a thread takes it or none are waiting
+      // 当有等待资源的线程时，将资源交到某个等待线程后才返回（SynchronousQueue）
       while (waiters.get() > 0 && !handoffQueue.offer(bagEntry)) {
          yield();
       }
@@ -231,6 +244,7 @@ public class ConcurrentBag<T extends IConcurrentBagEntry> implements AutoCloseab
     */
    public boolean remove(final T bagEntry)
    {
+      //// 如果资源正在使用且无法进行状态切换，则返回失败
       if (!bagEntry.compareAndSet(STATE_IN_USE, STATE_REMOVED) && !bagEntry.compareAndSet(STATE_RESERVED, STATE_REMOVED) && !closed) {
          LOGGER.warn("Attempt to remove an object from the bag that was not borrowed or reserved: {}", bagEntry);
          return false;
@@ -384,10 +398,12 @@ public class ConcurrentBag<T extends IConcurrentBagEntry> implements AutoCloseab
    private boolean useWeakThreadLocals()
    {
       try {
+         // 人工指定是否使用弱引用，但是官方不推荐进行自主设置。
          if (System.getProperty("com.zaxxer.hikari.useWeakReferences") != null) {   // undocumented manual override of WeakReference behavior
             return Boolean.getBoolean("com.zaxxer.hikari.useWeakReferences");
          }
 
+         // 默认通过判断初始化的ClassLoader是否是系统的ClassLoader来确定
          return getClass().getClassLoader() != ClassLoader.getSystemClassLoader();
       }
       catch (SecurityException se) {

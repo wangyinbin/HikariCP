@@ -22,8 +22,17 @@ import java.util.concurrent.Semaphore;
 
 /**
  * This class implements a lock that can be used to suspend and resume the pool.  It
- * also provides a faux implementation that is used when the feature is disabled that
+ * also provides a faux(fake) implementation that is used when the feature is disabled that
  * hopefully gets fully "optimized away" by the JIT.
+ *
+ * 实现了一虚一实两个java.util.concurrent.Semaphore
+ * 由于Hikari的isAllowPoolSuspension默认值是false的，FAUX_LOCK只是一个空方法，acquisitionSemaphore对象也是空的；
+ *
+ * 如果isAllowPoolSuspension值调整为true，
+ * 当收到MBean的suspend调用时将会一次性acquisitionSemaphore.acquireUninterruptibly从此信号量获取给定数目MAX_PERMITS 10000的许可，
+ * 在提供这些许可前一直将线程阻塞。
+ * 之后HikariPool的getConnection方法获取不到连接，阻塞在suspendResumeLock.acquire()，
+ * 除非resume方法释放给定数目MAX_PERMITS 10000的许可，将其返回到信号量。
  *
  * @author Brett Wooldridge
  */

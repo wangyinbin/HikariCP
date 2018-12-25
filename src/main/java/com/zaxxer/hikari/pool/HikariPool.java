@@ -385,7 +385,9 @@ public final class HikariPool extends PoolBase implements HikariPoolMXBean, IBag
       }
    }
 
-   /** {@inheritDoc} */
+   /**
+    *
+    */
    @Override
    public synchronized void resumePool()
    {
@@ -598,6 +600,10 @@ public final class HikariPool extends PoolBase implements HikariPoolMXBean, IBag
     * If the caller is the owner, or if the Connection is idle (i.e. can be "reserved" in the {@link ConcurrentBag}),
     * then we can close the connection immediately.  Otherwise, we leave it "marked" for eviction so that it is evicted
     * the next time someone tries to acquire it from the pool.
+    *
+    * Mbean的softEvictConnections方法真正执行的是com.zaxxer.hikari.pool.HikariPool中softEvictConnections方法，
+    * 这是一种“软”驱逐池中连接的方法，如果调用方是owner身份，或者连接处于空闲状态，可以立即关闭连接。
+    * 否则，我们将其“标记”为驱逐，以便下次有人试图从池中获取它时将其逐出。
     *
     * @param poolEntry the PoolEntry (/Connection) to "soft" evict from the pool
     * @param reason the reason that the connection is being evicted

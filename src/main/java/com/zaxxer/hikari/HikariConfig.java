@@ -88,6 +88,11 @@ public class HikariConfig implements HikariConfigMXBean
    private boolean isReadOnly;
    private boolean isIsolateInternalQueries;
    private boolean isRegisterMbeans;
+   /**
+    * This property controls whether the pool can be suspended and resumed through JMX. This is useful for certain failover automation scenarios.
+    * When the pool is suspended, calls to getConnection() will not timeout and will be held until the pool is resumed. Default: false
+    * 这里要特别说明一下，必须开启 allowPoolSuspension: true 且在 registerMbeans: true的情况下才能通过MBean Proxy调节softEvictConnections()和suspendPool()/resumePool() methods
+    */
    private boolean isAllowPoolSuspension;
    private DataSource dataSource;
    private Properties dataSourceProperties;
