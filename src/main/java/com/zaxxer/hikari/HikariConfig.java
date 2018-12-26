@@ -65,6 +65,13 @@ public class HikariConfig implements HikariConfigMXBean
    private volatile long connectionTimeout;
    private volatile long validationTimeout;
    private volatile long idleTimeout;
+   /**
+    * This property controls the amount of time that a connection can be out of the pool
+    * before a message is logged indicating a possible connection leak.
+    * A value of 0 means leak detection is disabled.
+    * Lowest acceptable value for enabling leak detection is 2000 (2 seconds). Default: 0
+    * 参考：HikariConfigMXBean
+    */
    private volatile long leakDetectionThreshold;
    private volatile long maxLifetime;
    private volatile int maxPoolSize;

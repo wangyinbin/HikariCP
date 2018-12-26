@@ -182,6 +182,9 @@ public final class HikariPool extends PoolBase implements HikariPoolMXBean, IBag
             }
             else {
                metricsTracker.recordBorrowStats(poolEntry, startTime);
+               //创建代理连接的时候关联了ProxyLeakTask。
+               // 连接泄漏检测的原理就是：连接有借有还，hikari是每借用一个connection则会创建一个延时的定时任务，
+               // 在归还或者出异常的或者用户手动调用evictConnection的时候cancel掉这个task
                return poolEntry.createProxyConnection(leakTaskFactory.schedule(poolEntry), now);
             }
          } while (timeout > 0L);
@@ -633,7 +636,10 @@ public final class HikariPool extends PoolBase implements HikariPoolMXBean, IBag
       if (config.getScheduledExecutor() == null) {
          final ThreadFactory threadFactory = Optional.ofNullable(config.getThreadFactory()).orElseGet(() -> new DefaultThreadFactory(poolName + " housekeeper", true));
          final ScheduledThreadPoolExecutor executor = new ScheduledThreadPoolExecutor(1, threadFactory, new ThreadPoolExecutor.DiscardPolicy());
+
+         //传递false参数给这个方法，执行shutdown()方法之后，待处理的任务将不会被执行
          executor.setExecuteExistingDelayedTasksAfterShutdownPolicy(false);
+         //取消任务后，判断是否需要从阻塞队列中移除任务。其中removeOnCancel参数通过setRemoveOnCancelPolicy()设置。
          executor.setRemoveOnCancelPolicy(true);
          return executor;
       }

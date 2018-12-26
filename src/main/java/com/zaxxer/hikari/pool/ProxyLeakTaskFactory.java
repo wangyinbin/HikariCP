@@ -35,6 +35,7 @@ class ProxyLeakTaskFactory
       this.leakDetectionThreshold = leakDetectionThreshold;
    }
 
+   //如果leakDetectionThreshold=0，即禁用连接泄露检测，schedule返回的是ProxyLeakTask.NO_LEAK，否则则新建一个ProxyLeakTask，在leakDetectionThreshold时间后触发
    ProxyLeakTask schedule(final PoolEntry poolEntry)
    {
       return (leakDetectionThreshold == 0) ? ProxyLeakTask.NO_LEAK : scheduleNewTask(poolEntry);
