@@ -306,6 +306,8 @@ public class ConcurrentBag<T extends IConcurrentBagEntry> implements AutoCloseab
     * from the bag can be make available for borrowing again by calling
     * the <code>unreserve(T)</code> method.
     *
+    * 标记一个item为被借出状态(STATE_RESERVED)
+    * 调用unreserve（）
     * @param bagEntry the item to reserve
     * @return true if the item was able to be reserved, false otherwise
     */

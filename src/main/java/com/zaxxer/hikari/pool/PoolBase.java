@@ -61,6 +61,8 @@ abstract class PoolBase
    final AtomicReference<Exception> lastConnectionFailure;
 
    long connectionTimeout;
+   //This property controls the maximum amount of time that a connection will be tested for aliveness.
+   // This value must be less than the connectionTimeout. Lowest acceptable validation timeout is 250 ms. Default: 5000
    long validationTimeout;
 
    private static final String[] RESET_STATES = {"readOnly", "autoCommit", "isolation", "catalog", "netTimeout", "schema"};
